@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
 import CategoryGrid from "./components/CategoryGrid";
@@ -9,292 +9,408 @@ import VendorDashboard from "./components/VendorDashboard";
 import CartView from "./components/CartView";
 import MasterCheckout from "./components/MasterCheckout";
 import BookingSuccess from "./components/BookingSuccess";
+import LoginPage from "./components/LoginPage";
+import RegisterPage from "./components/RegisterPage";
+import CustomerDashboard from "./components/CustomerDashboard";
+import AdminDashboard from "./components/AdminDashboard";
 import { useCart } from "./context/CartContext";
-
-// Mock Data
 import {
   CATEGORIES,
   DISTRICTS,
   PACKAGES,
   MOCK_BOOKINGS,
 } from "./data/mockData";
+import { INITIAL_VENDOR_VERIFICATIONS, MOCK_USERS } from "./data/mockUsers";
+
+const mapMockBookingsToCustomer = (bookings) =>
+  bookings.map((b) => ({
+    id: b.id,
+    title: b.pkgTitle,
+    eventDate: b.date,
+    location: b.location,
+    totalPaid: b.totalPrice,
+    status: b.status === "Pending Review" ? "Pending" : b.status,
+    statusText: `${b.pkgTitle} - ${b.status}`,
+  }));
 
 export default function App() {
-  const { addToCart, cartItems } = useCart();
+  const { addToCart, cartItems, groupedByVendor, masterTotal } = useCart();
 
-  // Global App States
-  const [currentRole, setCurrentRole] = useState("customer"); // "customer" | "vendor"
-  const [currentView, setCurrentView] = useState("home"); // "home" | "explorer" | "detail" | "cart" | "checkout" | "success" | "vendor-dashboard"
+  const [appUsers, setAppUsers] = useState(MOCK_USERS);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [currentView, setCurrentView] = useState("home");
   const [selectedLocation, setSelectedLocation] = useState("Colombo");
-
-  // Dynamic Catalog State (allows adding new packages via Vendor Dashboard!)
   const [packages, setPackages] = useState(PACKAGES);
-
-  // Dynamic Bookings State (allows real-time confirmation/declining!)
-  const [bookings, setBookings] = useState(MOCK_BOOKINGS);
-
-  // Selected detail package
   const [selectedPkgId, setSelectedPkgId] = useState(null);
-
-  // Pre-filled Explorer Filter state from Hero quick search
   const [explorerFilters, setExplorerFilters] = useState({});
+  const [loginError, setLoginError] = useState("");
+  const [vendorVerifications, setVendorVerifications] = useState(
+    INITIAL_VENDOR_VERIFICATIONS,
+  );
 
-  // Navigation controller helper
+  const [customerBookings, setCustomerBookings] = useState(
+    mapMockBookingsToCustomer(MOCK_BOOKINGS),
+  );
+
+  const [vendorIncomingBookings, setVendorIncomingBookings] = useState([
+    {
+      id: "in-1",
+      vendorId: "vendor-lanka-sounds",
+      customerName: "Nimasha Fernando",
+      subOrderLabel: "Sub-Order #990 for Lanka Sounds & Entertainment",
+      amount: 113000,
+      status: "Accepted",
+    },
+    {
+      id: "in-2",
+      vendorId: "vendor-royal-catering",
+      customerName: "Sahan Gunawardena",
+      subOrderLabel: "Sub-Order #991 for Royal Catering Services",
+      amount: 275000,
+      status: "Pending",
+    },
+  ]);
+
+  const [transactions, setTransactions] = useState([]);
+
+  const activePackage = packages.find((p) => p.id === selectedPkgId);
+
   const handleNavigate = (view) => {
-    setCurrentView(view);
+    if (view === "dashboard") {
+      if (!currentUser) {
+        setCurrentView("login");
+      } else if (currentUser.role === "admin") {
+        setCurrentView("admin-dashboard");
+      } else if (currentUser.role === "vendor") {
+        setCurrentView("vendor-dashboard");
+      } else {
+        setCurrentView("customer-dashboard");
+      }
+    } else {
+      setCurrentView(view);
+    }
+
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Select a category from homepage grid -> redirects to Explorer with filter
-  const handleSelectCategory = (catId) => {
-    setExplorerFilters({ category: catId });
-    handleNavigate("explorer");
-  };
-
-  // Hero Quick Search query submit
   const handleHeroSearch = (filters) => {
     setExplorerFilters(filters);
     handleNavigate("explorer");
   };
 
-  // Select package card -> opens detail page
+  const handleSelectCategory = (catId) => {
+    setExplorerFilters({ category: catId });
+    handleNavigate("explorer");
+  };
+
   const handleSelectPackage = (pkgId) => {
     setSelectedPkgId(pkgId);
     handleNavigate("detail");
   };
 
-  // Vendor Action: Add new custom package
   const handleAddPackage = (newPkg) => {
     setPackages((prev) => [newPkg, ...prev]);
   };
 
-  // Vendor Action: Accept or Decline incoming reservation
-  const handleUpdateBookingStatus = (bookingId, newStatus) => {
-    setBookings((prev) =>
-      prev.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b)),
+  const handleLogin = ({ email, password }) => {
+    const user = appUsers.find(
+      (u) =>
+        u.email.toLowerCase() === email.toLowerCase() &&
+        u.password === password,
+    );
+
+    if (!user) {
+      setLoginError(
+        "Invalid email or password. Use demo credentials listed on the right.",
+      );
+      return;
+    }
+
+    setLoginError("");
+    setCurrentUser(user);
+    if (user.role === "admin") {
+      setCurrentView("admin-dashboard");
+    } else if (user.role === "vendor") {
+      setCurrentView("vendor-dashboard");
+    } else {
+      setCurrentView("home");
+    }
+  };
+
+  const handleRegister = ({ name, email, password, role }) => {
+    const exists = appUsers.some(
+      (u) => u.email.toLowerCase() === email.toLowerCase(),
+    );
+    if (exists) {
+      setLoginError("Email already exists. Please login instead.");
+      setCurrentView("login");
+      return;
+    }
+
+    const newUser = {
+      id: `usr-${Date.now()}`,
+      name,
+      email,
+      password,
+      role,
+      vendorId:
+        role === "vendor"
+          ? `vendor-${name
+              .toLowerCase()
+              .replace(/[^a-z0-9\s-]/g, "")
+              .trim()
+              .replace(/\s+/g, "-")}`
+          : undefined,
+      vendorName: role === "vendor" ? `${name} Events` : undefined,
+    };
+
+    setAppUsers((prev) => [newUser, ...prev]);
+
+    if (role === "vendor") {
+      setVendorVerifications((prev) => [
+        {
+          id: `verify-${Date.now()}`,
+          businessName: `${name} Events`,
+          ownerName: name,
+          district: selectedLocation,
+          submittedAt: "2026-05-21",
+          status: "Pending",
+        },
+        ...prev,
+      ]);
+    }
+
+    setCurrentUser(newUser);
+    if (role === "vendor") {
+      setCurrentView("vendor-dashboard");
+    } else {
+      setCurrentView("home");
+    }
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setCurrentView("home");
+  };
+
+  const handleMasterPaymentSuccess = () => {
+    const vendorGroups = Object.values(groupedByVendor);
+
+    const splitOrders = vendorGroups.map((group, index) => {
+      const splitAmount = group.items.reduce(
+        (sum, item) =>
+          sum +
+          item.price +
+          item.selectedAddOns.reduce(
+            (addonSum, addon) => addonSum + addon.price,
+            0,
+          ),
+        0,
+      );
+
+      return {
+        subOrderId: 1001 + index,
+        vendorId: group.vendorId,
+        vendorName: group.vendorName,
+        amount: splitAmount,
+      };
+    });
+
+    const txId = `${Math.floor(10000 + Math.random() * 90000)}`;
+
+    setTransactions((prev) => [
+      {
+        id: txId,
+        customerName: currentUser?.name || "Guest Customer",
+        paidAt: "2026-05-21",
+        masterTotal,
+        splitOrders,
+      },
+      ...prev,
+    ]);
+
+    setVendorIncomingBookings((prev) => [
+      ...splitOrders.map((split) => ({
+        id: `in-${Date.now()}-${split.subOrderId}`,
+        vendorId: split.vendorId,
+        customerName: currentUser?.name || "Guest Customer",
+        subOrderLabel: `Sub-Order #${split.subOrderId} for ${split.vendorName}`,
+        amount: split.amount,
+        status: "Pending",
+      })),
+      ...prev,
+    ]);
+
+    setCustomerBookings((prev) => [
+      ...cartItems.map((item) => ({
+        id: `cust-${Date.now()}-${item.itemId}`,
+        title: item.title,
+        eventDate: "2026-06-20",
+        location: selectedLocation,
+        totalPaid:
+          item.price +
+          item.selectedAddOns.reduce((sum, addon) => sum + addon.price, 0),
+        status: "Confirmed",
+        statusText: `${item.title} by ${item.vendorName} - Confirmed`,
+      })),
+      ...prev,
+    ]);
+
+    setCurrentView("success");
+  };
+
+  const handleUpdateIncomingBooking = (incomingId, status) => {
+    setVendorIncomingBookings((prev) =>
+      prev.map((booking) =>
+        booking.id === incomingId ? { ...booking, status } : booking,
+      ),
     );
   };
 
-  // Retrieve active package details for detail page view
-  const activePackage = packages.find((p) => p.id === selectedPkgId);
+  const handleApproveVendor = (verificationId) => {
+    setVendorVerifications((prev) =>
+      prev.map((v) =>
+        v.id === verificationId ? { ...v, status: "Approved" } : v,
+      ),
+    );
+  };
+
+  const currentVendorIncoming = useMemo(() => {
+    if (!currentUser || currentUser.role !== "vendor") return [];
+    return vendorIncomingBookings.filter(
+      (b) => b.vendorId === currentUser.vendorId,
+    );
+  }, [vendorIncomingBookings, currentUser]);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Global Navbar */}
       <Navbar
-        currentRole={currentRole}
-        setCurrentRole={(role) => {
-          setCurrentRole(role);
-          if (role === "vendor") {
-            handleNavigate("vendor-dashboard");
-          } else {
-            handleNavigate("home");
-          }
-        }}
+        currentUser={currentUser}
         selectedLocation={selectedLocation}
         setSelectedLocation={setSelectedLocation}
         districts={DISTRICTS}
         onNavigate={handleNavigate}
-        currentView={currentView}
         cartCount={cartItems.length}
+        onLogout={handleLogout}
       />
 
-      {/* Main View Router */}
       <main className="flex-grow">
-        {currentRole === "customer" ? (
-          /* ========================================================
-             CUSTOMER VIEWS
-             ======================================================== */
-          <>
-            {/* View A: Homepage & Discovery View */}
-            {currentView === "home" && (
-              <div className="animate-in fade-in duration-300">
-                <Hero
-                  categories={CATEGORIES}
-                  districts={DISTRICTS}
-                  onSearch={handleHeroSearch}
-                />
+        {currentView === "login" && (
+          <LoginPage
+            onLogin={handleLogin}
+            onGoRegister={() => handleNavigate("register")}
+            error={loginError}
+          />
+        )}
 
-                <CategoryGrid
-                  categories={CATEGORIES}
-                  onSelectCategory={handleSelectCategory}
-                />
+        {currentView === "register" && (
+          <RegisterPage
+            onRegister={handleRegister}
+            onGoLogin={() => handleNavigate("login")}
+          />
+        )}
 
-                <FeaturedPackages
-                  packages={packages}
-                  onSelectPackage={handleSelectPackage}
-                />
-              </div>
-            )}
+        {currentView === "home" && (
+          <div className="animate-in fade-in duration-300">
+            <Hero
+              categories={CATEGORIES}
+              districts={DISTRICTS}
+              onSearch={handleHeroSearch}
+            />
+            <CategoryGrid
+              categories={CATEGORIES}
+              onSelectCategory={handleSelectCategory}
+            />
+            <FeaturedPackages
+              packages={packages}
+              onSelectPackage={handleSelectPackage}
+            />
+          </div>
+        )}
 
-            {/* View B: Advanced Marketplace Explorer */}
-            {currentView === "explorer" && (
-              <div className="animate-in fade-in duration-300">
-                <MarketplaceExplorer
-                  packages={packages}
-                  categories={CATEGORIES}
-                  districts={DISTRICTS}
-                  onSelectPackage={handleSelectPackage}
-                  initialFilters={explorerFilters}
-                />
-              </div>
-            )}
+        {currentView === "explorer" && (
+          <MarketplaceExplorer
+            packages={packages}
+            categories={CATEGORIES}
+            districts={DISTRICTS}
+            onSelectPackage={handleSelectPackage}
+            initialFilters={explorerFilters}
+          />
+        )}
 
-            {/* View C: Package Detail View */}
-            {currentView === "detail" && activePackage && (
-              <div className="animate-in fade-in duration-300">
-                <PackageDetail
-                  pkg={activePackage}
-                  onBackToExplorer={() => handleNavigate("explorer")}
-                  onNavigate={handleNavigate}
-                  onAddToCart={addToCart}
-                />
-              </div>
-            )}
+        {currentView === "detail" && activePackage && (
+          <PackageDetail
+            pkg={activePackage}
+            onBackToExplorer={() => handleNavigate("explorer")}
+            onNavigate={handleNavigate}
+            onAddToCart={addToCart}
+          />
+        )}
 
-            {/* View D: Multi-vendor Cart */}
-            {currentView === "cart" && (
-              <div className="animate-in fade-in duration-300">
-                <CartView
-                  onBack={() => handleNavigate("explorer")}
-                  onProceed={() => handleNavigate("checkout")}
-                />
-              </div>
-            )}
+        {currentView === "cart" && (
+          <CartView
+            onBack={() => handleNavigate("explorer")}
+            onProceed={() => {
+              if (currentUser?.role !== "customer") {
+                handleNavigate("login");
+                return;
+              }
+              handleNavigate("checkout");
+            }}
+          />
+        )}
 
-            {/* View E: Master Checkout Simulation */}
-            {currentView === "checkout" && (
-              <div className="animate-in fade-in duration-300">
-                <MasterCheckout
-                  onBackToCart={() => handleNavigate("cart")}
-                  onPaymentSuccess={() => handleNavigate("success")}
-                />
-              </div>
-            )}
+        {currentView === "checkout" && (
+          <MasterCheckout
+            onBackToCart={() => handleNavigate("cart")}
+            onPaymentSuccess={handleMasterPaymentSuccess}
+          />
+        )}
 
-            {/* View F: Success + Split Vendor Sub Orders */}
-            {currentView === "success" && (
-              <div className="animate-in fade-in duration-300">
-                <BookingSuccess onReturnHome={() => handleNavigate("home")} />
-              </div>
-            )}
-          </>
-        ) : (
-          /* ========================================================
-             VENDOR VIEWS
-             ======================================================== */
-          <>
-            {currentView === "vendor-dashboard" && (
-              <div className="animate-in fade-in duration-300">
-                <VendorDashboard
-                  packages={packages}
-                  onAddPackage={handleAddPackage}
-                  categories={CATEGORIES}
-                  districts={DISTRICTS}
-                  bookings={bookings}
-                  onUpdateBookingStatus={handleUpdateBookingStatus}
-                />
-              </div>
-            )}
-          </>
+        {currentView === "success" && (
+          <BookingSuccess onReturnHome={() => handleNavigate("home")} />
+        )}
+
+        {currentView === "customer-dashboard" &&
+          currentUser?.role === "customer" && (
+            <CustomerDashboard
+              bookings={customerBookings}
+              currentUser={currentUser}
+            />
+          )}
+
+        {currentView === "vendor-dashboard" &&
+          currentUser?.role === "vendor" && (
+            <VendorDashboard
+              currentUser={currentUser}
+              packages={packages}
+              categories={CATEGORIES}
+              districts={DISTRICTS}
+              onAddPackage={handleAddPackage}
+              incomingBookings={currentVendorIncoming}
+              onUpdateIncomingBooking={handleUpdateIncomingBooking}
+            />
+          )}
+
+        {currentView === "admin-dashboard" && currentUser?.role === "admin" && (
+          <AdminDashboard
+            users={appUsers}
+            vendorVerifications={vendorVerifications}
+            onApproveVendor={handleApproveVendor}
+            transactions={transactions}
+          />
         )}
       </main>
 
-      {/* Global Celebratory Footer */}
-      <footer className="bg-slate-900 border-t border-slate-800 text-slate-400 py-12 px-4 lg:px-8 mt-16 select-none">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
-          {/* Column 1: Brand details */}
-          <div className="flex flex-col gap-3">
-            <span className="font-extrabold text-xl tracking-tight text-white">
-              Uthsawa
-            </span>
-            <p className="text-slate-400 text-xs leading-relaxed font-light">
-              Sri Lanka's premier decentralized marketplace for celebration
-              services, wedding Poruwas, DJs, line arrays, ambient lighting, and
-              traditional banquets.
+      <footer className="bg-slate-900 border-t border-slate-800 text-slate-400 py-10 px-4 lg:px-8 mt-16">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <p className="font-extrabold text-white">Uthsawa Marketplace</p>
+            <p className="text-xs text-slate-500 mt-1">
+              Frontend-only multi-role prototype for Sri Lankan event services.
             </p>
-            <span className="text-[10px] text-slate-500 mt-2 font-semibold">
-              © 2026 Uthsawa Inc. All Celebrations Reserved.
-            </span>
           </div>
-
-          {/* Column 2: Quick links */}
-          <div className="flex flex-col gap-2.5">
-            <span className="text-white text-xs font-bold uppercase tracking-wider mb-1">
-              Customer Hub
-            </span>
-            <a
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                handleNavigate("home");
-              }}
-              className="text-xs hover:text-white transition-colors"
-            >
-              Homepage Discovery
-            </a>
-            <a
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                handleNavigate("explorer");
-              }}
-              className="text-xs hover:text-white transition-colors"
-            >
-              Marketplace Explorer
-            </a>
-            <a href="#" className="text-xs hover:text-white transition-colors">
-              Featured Packages
-            </a>
-            <a href="#" className="text-xs hover:text-white transition-colors">
-              Trust & Escrow Policies
-            </a>
-          </div>
-
-          {/* Column 3: Vendor links */}
-          <div className="flex flex-col gap-2.5">
-            <span className="text-white text-xs font-bold uppercase tracking-wider mb-1">
-              For Event Suppliers
-            </span>
-            <a
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                setCurrentRole("vendor");
-                handleNavigate("vendor-dashboard");
-              }}
-              className="text-xs hover:text-white transition-colors"
-            >
-              Supplier Dashboard Console
-            </a>
-            <a href="#" className="text-xs hover:text-white transition-colors">
-              Join as a Sri Lankan Vendor
-            </a>
-            <a href="#" className="text-xs hover:text-white transition-colors">
-              Service Standards Agreement
-            </a>
-            <a href="#" className="text-xs hover:text-white transition-colors">
-              Payout Schedule
-            </a>
-          </div>
-
-          {/* Column 4: Contact/Local Info */}
-          <div className="flex flex-col gap-2.5 text-xs">
-            <span className="text-white text-xs font-bold uppercase tracking-wider mb-1">
-              Ceylon Head Office
-            </span>
-            <span className="leading-relaxed font-light">
-              108, Galle Road,
-              <br />
-              Kollupitiya, Colombo 03,
-              <br />
-              Sri Lanka
-            </span>
-            <span className="text-amber-400 font-bold mt-1">
-              support@uthsawa.lk
-            </span>
-            <span className="text-slate-500 font-medium">+94 11 234 5678</span>
-          </div>
+          <p className="text-xs text-slate-500">© 2026 Uthsawa Inc.</p>
         </div>
       </footer>
     </div>
