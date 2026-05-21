@@ -189,7 +189,8 @@ export default function App() {
           packageId: pendingAction.packageId,
           title: pendingAction.title,
           price: pendingAction.price,
-          selectedAddOns: pendingAction.selectedAddOns || [],
+          selectedAddOns:
+            pendingAction.selectedAddOns || pendingAction.selectedAddons || [],
           vendorName: pendingAction.vendorName,
           vendorId: pendingAction.vendorId,
         });

@@ -14,12 +14,14 @@ This file is the project memory source of truth for architecture, recent meaning
 - Recorded current multi-role frontend architecture and data flow.
 - Added guest add-to-cart/login interception with session-backed pending cart memory and login toast handling.
 - Switched guest add-to-cart/login redirect flow to React Router navigation with sessionStorage-backed package restore.
+- Fixed a runtime bug in PackageDetail where the guest add-to-cart handler referenced the wrong add-on state variable and prevented redirect/login behavior.
 
 ### Why it was changed
 
 - To enforce persistent development memory, reduce context drift, and prevent inconsistent or hallucinatory changes across sessions.
 - To preserve a guest's selected package intent through login and restore it immediately after mock authentication.
 - To make the redirect explicit through `/login` while keeping the pending package payload recoverable after auth.
+- To ensure the package detail button actually triggers the redirect path and restores the saved package into the cart after successful login.
 
 ### Files affected
 
@@ -28,6 +30,7 @@ This file is the project memory source of truth for architecture, recent meaning
 - src/components/LoginPage.jsx
 - src/components/PackageDetail.jsx
 - src/main.jsx
+- src/data/mockUsers.js
 
 ## Current Architecture Decisions
 
@@ -45,6 +48,7 @@ This file is the project memory source of truth for architecture, recent meaning
 - Guest purchase intent is stored in sessionStorage using:
   - redirect_package
   - login_notice
+- The saved package payload is restored into the global cart after successful login and the user is routed to /cart.
 - Dashboard routing by role:
   - Customer: customer-dashboard
   - Vendor: vendor-dashboard
@@ -62,6 +66,7 @@ This file is the project memory source of truth for architecture, recent meaning
 - Customer flow:
   - Browse packages, add to cart, proceed to master checkout.
   - Guest add-to-cart and book-now actions now save the current package, navigate to /login, then restore the saved package into cart after auth.
+  - The package detail guest handler now uses the correct selectedAddons state, avoiding the previous runtime error.
   - On successful payment simulation, split orders are generated and reflected in dashboards.
   - Customer Dashboard has Upcoming/Past booking tabs.
 - Vendor flow:
