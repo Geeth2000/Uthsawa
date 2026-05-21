@@ -8,7 +8,7 @@ export default function LoginPage({ onLogin, onGoRegister, error }) {
   const [toastMessage, setToastMessage] = useState("");
 
   useEffect(() => {
-    const message = sessionStorage.getItem("uthsawa_login_notice");
+    const message = sessionStorage.getItem("login_notice");
     if (message) {
       setToastMessage(message);
 

@@ -13,11 +13,13 @@ This file is the project memory source of truth for architecture, recent meaning
 - Added and initialized SYSTEM_MEMORY.md at project root.
 - Recorded current multi-role frontend architecture and data flow.
 - Added guest add-to-cart/login interception with session-backed pending cart memory and login toast handling.
+- Switched guest add-to-cart/login redirect flow to React Router navigation with sessionStorage-backed package restore.
 
 ### Why it was changed
 
 - To enforce persistent development memory, reduce context drift, and prevent inconsistent or hallucinatory changes across sessions.
 - To preserve a guest's selected package intent through login and restore it immediately after mock authentication.
+- To make the redirect explicit through `/login` while keeping the pending package payload recoverable after auth.
 
 ### Files affected
 
@@ -25,6 +27,7 @@ This file is the project memory source of truth for architecture, recent meaning
 - src/App.jsx
 - src/components/LoginPage.jsx
 - src/components/PackageDetail.jsx
+- src/main.jsx
 
 ## Current Architecture Decisions
 
@@ -38,9 +41,10 @@ This file is the project memory source of truth for architecture, recent meaning
 - Cart and master checkout are global via context:
   - Cart state lives in src/context/CartContext.jsx.
   - Multi-vendor split logic is generated during payment success in src/App.jsx.
+- Browser routing is enabled via react-router-dom BrowserRouter and useNavigate.
 - Guest purchase intent is stored in sessionStorage using:
-  - uthsawa_pending_cart_action
-  - uthsawa_login_notice
+  - redirect_package
+  - login_notice
 - Dashboard routing by role:
   - Customer: customer-dashboard
   - Vendor: vendor-dashboard
@@ -57,7 +61,7 @@ This file is the project memory source of truth for architecture, recent meaning
   - Login/Register from navbar.
 - Customer flow:
   - Browse packages, add to cart, proceed to master checkout.
-  - Guest add-to-cart and book-now actions redirect to login, then restore the saved package into cart after auth.
+  - Guest add-to-cart and book-now actions now save the current package, navigate to /login, then restore the saved package into cart after auth.
   - On successful payment simulation, split orders are generated and reflected in dashboards.
   - Customer Dashboard has Upcoming/Past booking tabs.
 - Vendor flow:

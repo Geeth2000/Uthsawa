@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Calendar,
   Check,
@@ -17,8 +18,8 @@ export default function PackageDetail({
   onNavigate,
   onAddToCart,
   currentUser,
-  onGuestCartAction,
 }) {
+  const navigate = useNavigate();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedAddons, setSelectedAddons] = useState([]);
   const [selectedDate, setSelectedDate] = useState("");
@@ -75,7 +76,7 @@ export default function PackageDetail({
 
   const handleAddToMasterCart = () => {
     if (!currentUser) {
-      onGuestCartAction({
+      const currentPackage = {
         packageId: pkg.id,
         title: pkg.title,
         price: pkg.price,
@@ -83,8 +84,14 @@ export default function PackageDetail({
         vendorName: pkg.vendorName,
         vendorId: pkg.vendorId,
         redirectTo: "cart",
-      });
-      onNavigate("login");
+      };
+
+      sessionStorage.setItem("redirect_package", JSON.stringify(currentPackage));
+      sessionStorage.setItem(
+        "login_notice",
+        "Please login to add this package to your cart and proceed.",
+      );
+      navigate("/login");
       return;
     }
 
@@ -103,7 +110,7 @@ export default function PackageDetail({
 
   const handleBookNow = () => {
     if (!currentUser) {
-      onGuestCartAction({
+      const currentPackage = {
         packageId: pkg.id,
         title: pkg.title,
         price: pkg.price,
@@ -111,8 +118,14 @@ export default function PackageDetail({
         vendorName: pkg.vendorName,
         vendorId: pkg.vendorId,
         redirectTo: "cart",
-      });
-      onNavigate("login");
+      };
+
+      sessionStorage.setItem("redirect_package", JSON.stringify(currentPackage));
+      sessionStorage.setItem(
+        "login_notice",
+        "Please login to add this package to your cart and proceed.",
+      );
+      navigate("/login");
       return;
     }
 

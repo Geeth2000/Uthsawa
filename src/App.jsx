@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
 import CategoryGrid from "./components/CategoryGrid";
@@ -22,8 +23,8 @@ import {
 } from "./data/mockData";
 import { INITIAL_VENDOR_VERIFICATIONS, MOCK_USERS } from "./data/mockUsers";
 
-const PENDING_CART_KEY = "uthsawa_pending_cart_action";
-const LOGIN_NOTICE_KEY = "uthsawa_login_notice";
+const PENDING_CART_KEY = "redirect_package";
+const LOGIN_NOTICE_KEY = "login_notice";
 
 const mapMockBookingsToCustomer = (bookings) =>
   bookings.map((b) => ({
@@ -38,6 +39,8 @@ const mapMockBookingsToCustomer = (bookings) =>
 
 export default function App() {
   const { addToCart, cartItems, groupedByVendor, masterTotal } = useCart();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const [appUsers, setAppUsers] = useState(MOCK_USERS);
   const [currentUser, setCurrentUser] = useState(null);
@@ -78,7 +81,50 @@ export default function App() {
 
   const activePackage = packages.find((p) => p.id === selectedPkgId);
 
+  React.useEffect(() => {
+    const pathMap = {
+      "/": "home",
+      "/login": "login",
+      "/register": "register",
+      "/explorer": "explorer",
+      "/detail": "detail",
+      "/cart": "cart",
+      "/checkout": "checkout",
+      "/success": "success",
+      "/customer-dashboard": "customer-dashboard",
+      "/vendor-dashboard": "vendor-dashboard",
+      "/admin-dashboard": "admin-dashboard",
+      "/dashboard": currentUser?.role === "admin"
+        ? "admin-dashboard"
+        : currentUser?.role === "vendor"
+          ? "vendor-dashboard"
+          : currentUser?.role === "customer"
+            ? "customer-dashboard"
+            : "login",
+    };
+
+    const nextView = pathMap[location.pathname] || "home";
+    if (nextView !== currentView) {
+      setCurrentView(nextView);
+    }
+  }, [location.pathname, currentView, currentUser?.role]);
+
   const handleNavigate = (view) => {
+    const routeMap = {
+      home: "/",
+      login: "/login",
+      register: "/register",
+      explorer: "/explorer",
+      detail: "/detail",
+      cart: "/cart",
+      checkout: "/checkout",
+      success: "/success",
+      "customer-dashboard": "/customer-dashboard",
+      "vendor-dashboard": "/vendor-dashboard",
+      "admin-dashboard": "/admin-dashboard",
+      dashboard: "/dashboard",
+    };
+
     if (view === "dashboard") {
       if (!currentUser) {
         setCurrentView("login");
@@ -92,6 +138,8 @@ export default function App() {
     } else {
       setCurrentView(view);
     }
+
+    navigate(routeMap[view] || "/");
 
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -113,14 +161,6 @@ export default function App() {
 
   const handleAddPackage = (newPkg) => {
     setPackages((prev) => [newPkg, ...prev]);
-  };
-
-  const handleGuestCartAction = (pendingAction) => {
-    sessionStorage.setItem(PENDING_CART_KEY, JSON.stringify(pendingAction));
-    sessionStorage.setItem(
-      LOGIN_NOTICE_KEY,
-      "Please login to add this package to your cart and proceed.",
-    );
   };
 
   const handleLogin = ({ email, password }) => {
@@ -155,6 +195,7 @@ export default function App() {
 
         sessionStorage.removeItem(PENDING_CART_KEY);
         sessionStorage.removeItem(LOGIN_NOTICE_KEY);
+        navigate(pendingAction.redirectTo === "cart" ? "/cart" : "/detail");
         setCurrentView(pendingAction.redirectTo || "cart");
         return;
       } catch {
@@ -165,10 +206,13 @@ export default function App() {
 
     if (user.role === "admin") {
       setCurrentView("admin-dashboard");
+      navigate("/admin-dashboard");
     } else if (user.role === "vendor") {
       setCurrentView("vendor-dashboard");
+      navigate("/vendor-dashboard");
     } else {
       setCurrentView("home");
+      navigate("/");
     }
   };
 
@@ -228,6 +272,7 @@ export default function App() {
     sessionStorage.removeItem(PENDING_CART_KEY);
     sessionStorage.removeItem(LOGIN_NOTICE_KEY);
     setCurrentView("home");
+    navigate("/");
   };
 
   const handleMasterPaymentSuccess = () => {
@@ -382,7 +427,6 @@ export default function App() {
             onNavigate={handleNavigate}
             onAddToCart={addToCart}
             currentUser={currentUser}
-            onGuestCartAction={handleGuestCartAction}
           />
         )}
 
