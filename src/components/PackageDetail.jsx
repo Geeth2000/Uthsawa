@@ -16,6 +16,8 @@ export default function PackageDetail({
   onBackToExplorer,
   onNavigate,
   onAddToCart,
+  currentUser,
+  onGuestCartAction,
 }) {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedAddons, setSelectedAddons] = useState([]);
@@ -72,6 +74,20 @@ export default function PackageDetail({
   const calendarDays = generateMockCalendarDays();
 
   const handleAddToMasterCart = () => {
+    if (!currentUser) {
+      onGuestCartAction({
+        packageId: pkg.id,
+        title: pkg.title,
+        price: pkg.price,
+        selectedAddOns,
+        vendorName: pkg.vendorName,
+        vendorId: pkg.vendorId,
+        redirectTo: "cart",
+      });
+      onNavigate("login");
+      return;
+    }
+
     onAddToCart({
       packageId: pkg.id,
       title: pkg.title,
@@ -83,6 +99,33 @@ export default function PackageDetail({
 
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 1200);
+  };
+
+  const handleBookNow = () => {
+    if (!currentUser) {
+      onGuestCartAction({
+        packageId: pkg.id,
+        title: pkg.title,
+        price: pkg.price,
+        selectedAddOns,
+        vendorName: pkg.vendorName,
+        vendorId: pkg.vendorId,
+        redirectTo: "cart",
+      });
+      onNavigate("login");
+      return;
+    }
+
+    onAddToCart({
+      packageId: pkg.id,
+      title: pkg.title,
+      price: pkg.price,
+      selectedAddOns,
+      vendorName: pkg.vendorName,
+      vendorId: pkg.vendorId,
+    });
+
+    onNavigate("cart");
   };
 
   return (
@@ -321,6 +364,13 @@ export default function PackageDetail({
               className="w-full font-extrabold uppercase text-xs tracking-wider py-4 rounded-2xl shadow-md transition-all bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-emerald-950 hover:-translate-y-0.5"
             >
               {addedToCart ? "Added to Master Cart" : "Add to Master Cart"}
+            </button>
+
+            <button
+              onClick={handleBookNow}
+              className="w-full font-extrabold uppercase text-xs tracking-wider py-3.5 rounded-2xl transition-all bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-2"
+            >
+              Book Now
             </button>
 
             <button

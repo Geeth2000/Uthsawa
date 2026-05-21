@@ -1,10 +1,26 @@
-import React, { useState } from "react";
-import { LogIn, Mail, KeyRound, Sparkles } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { LogIn, Mail, KeyRound, Sparkles, BellRing, X } from "lucide-react";
 import { DEMO_CREDENTIALS } from "../data/mockUsers";
 
 export default function LoginPage({ onLogin, onGoRegister, error }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [toastMessage, setToastMessage] = useState("");
+
+  useEffect(() => {
+    const message = sessionStorage.getItem("uthsawa_login_notice");
+    if (message) {
+      setToastMessage(message);
+
+      const timer = setTimeout(() => {
+        setToastMessage("");
+      }, 4000);
+
+      return () => clearTimeout(timer);
+    }
+
+    return undefined;
+  }, []);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -13,6 +29,27 @@ export default function LoginPage({ onLogin, onGoRegister, error }) {
 
   return (
     <div className="max-w-6xl mx-auto px-4 lg:px-8 py-10">
+      {toastMessage && (
+        <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300 flex items-start gap-3">
+          <div className="mt-0.5 h-8 w-8 rounded-full bg-emerald-900 text-amber-300 flex items-center justify-center shrink-0">
+            <BellRing className="h-4 w-4" />
+          </div>
+          <div className="flex-1">
+            <p className="text-xs font-extrabold uppercase tracking-wider text-emerald-900">
+              Action Required
+            </p>
+            <p className="text-sm text-emerald-900 mt-1">{toastMessage}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setToastMessage("")}
+            className="text-emerald-700 hover:text-emerald-900"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
         <section className="rounded-[36px] border border-slate-200 bg-white p-7 lg:p-10 shadow-sm">
           <p className="text-xs uppercase tracking-[0.2em] font-bold text-emerald-700 mb-3">

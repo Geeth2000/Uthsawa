@@ -22,6 +22,9 @@ import {
 } from "./data/mockData";
 import { INITIAL_VENDOR_VERIFICATIONS, MOCK_USERS } from "./data/mockUsers";
 
+const PENDING_CART_KEY = "uthsawa_pending_cart_action";
+const LOGIN_NOTICE_KEY = "uthsawa_login_notice";
+
 const mapMockBookingsToCustomer = (bookings) =>
   bookings.map((b) => ({
     id: b.id,
@@ -112,6 +115,14 @@ export default function App() {
     setPackages((prev) => [newPkg, ...prev]);
   };
 
+  const handleGuestCartAction = (pendingAction) => {
+    sessionStorage.setItem(PENDING_CART_KEY, JSON.stringify(pendingAction));
+    sessionStorage.setItem(
+      LOGIN_NOTICE_KEY,
+      "Please login to add this package to your cart and proceed.",
+    );
+  };
+
   const handleLogin = ({ email, password }) => {
     const user = appUsers.find(
       (u) =>
@@ -128,6 +139,30 @@ export default function App() {
 
     setLoginError("");
     setCurrentUser(user);
+
+    const pendingRaw = sessionStorage.getItem(PENDING_CART_KEY);
+    if (pendingRaw) {
+      try {
+        const pendingAction = JSON.parse(pendingRaw);
+        addToCart({
+          packageId: pendingAction.packageId,
+          title: pendingAction.title,
+          price: pendingAction.price,
+          selectedAddOns: pendingAction.selectedAddOns || [],
+          vendorName: pendingAction.vendorName,
+          vendorId: pendingAction.vendorId,
+        });
+
+        sessionStorage.removeItem(PENDING_CART_KEY);
+        sessionStorage.removeItem(LOGIN_NOTICE_KEY);
+        setCurrentView(pendingAction.redirectTo || "cart");
+        return;
+      } catch {
+        sessionStorage.removeItem(PENDING_CART_KEY);
+        sessionStorage.removeItem(LOGIN_NOTICE_KEY);
+      }
+    }
+
     if (user.role === "admin") {
       setCurrentView("admin-dashboard");
     } else if (user.role === "vendor") {
@@ -190,6 +225,8 @@ export default function App() {
 
   const handleLogout = () => {
     setCurrentUser(null);
+    sessionStorage.removeItem(PENDING_CART_KEY);
+    sessionStorage.removeItem(LOGIN_NOTICE_KEY);
     setCurrentView("home");
   };
 
@@ -344,6 +381,8 @@ export default function App() {
             onBackToExplorer={() => handleNavigate("explorer")}
             onNavigate={handleNavigate}
             onAddToCart={addToCart}
+            currentUser={currentUser}
+            onGuestCartAction={handleGuestCartAction}
           />
         )}
 
