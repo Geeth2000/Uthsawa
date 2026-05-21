@@ -86,7 +86,10 @@ export default function PackageDetail({
         redirectTo: "cart",
       };
 
-      sessionStorage.setItem("redirect_package", JSON.stringify(currentPackage));
+      sessionStorage.setItem(
+        "redirect_package",
+        JSON.stringify(currentPackage),
+      );
       sessionStorage.setItem(
         "login_notice",
         "Please login to add this package to your cart and proceed.",
@@ -120,7 +123,10 @@ export default function PackageDetail({
         redirectTo: "cart",
       };
 
-      sessionStorage.setItem("redirect_package", JSON.stringify(currentPackage));
+      sessionStorage.setItem(
+        "redirect_package",
+        JSON.stringify(currentPackage),
+      );
       sessionStorage.setItem(
         "login_notice",
         "Please login to add this package to your cart and proceed.",

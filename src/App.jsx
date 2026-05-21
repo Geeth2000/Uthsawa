@@ -94,13 +94,14 @@ export default function App() {
       "/customer-dashboard": "customer-dashboard",
       "/vendor-dashboard": "vendor-dashboard",
       "/admin-dashboard": "admin-dashboard",
-      "/dashboard": currentUser?.role === "admin"
-        ? "admin-dashboard"
-        : currentUser?.role === "vendor"
-          ? "vendor-dashboard"
-          : currentUser?.role === "customer"
-            ? "customer-dashboard"
-            : "login",
+      "/dashboard":
+        currentUser?.role === "admin"
+          ? "admin-dashboard"
+          : currentUser?.role === "vendor"
+            ? "vendor-dashboard"
+            : currentUser?.role === "customer"
+              ? "customer-dashboard"
+              : "login",
     };
 
     const nextView = pathMap[location.pathname] || "home";
